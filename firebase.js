@@ -4,12 +4,13 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "ТВОЙ_API_KEY",
-  authDomain: "ТВОЙ_PROJECT.firebaseapp.com",
-  projectId: "ТВОЙ_PROJECT_ID",
-  storageBucket: "ТВОЙ_PROJECT.appspot.com",
-  messagingSenderId: "ID",
-  appId: "APP_ID"
+  apiKey: "AIzaSyApdR6xbfV3J2UMWubicsAuwRb3biH9Wnw",
+  authDomain: "life-is-game-8f170.firebaseapp.com",
+  projectId: "life-is-game-8f170",
+  storageBucket: "life-is-game-8f170.firebasestorage.app",
+  messagingSenderId: "861554529321",
+  appId: "1:861554529321:web:dda30b5d6c879433de7838",
+  measurementId: "G-ELFHWJMHBP"
 };
 
 const app = initializeApp(firebaseConfig);
