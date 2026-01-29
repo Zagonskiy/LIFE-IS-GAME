@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LIFE IS GAME - Simulator</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f0f7ff;
+            --card-bg: #ffffff;
+            --pastel-blue: #b3e5fc;
+            --accent-blue: #4fc3f7;
+            --dark-blue: #0288d1;
+            --text-main: #37474f;
+            --text-secondary: #78909c;
+        }
+
+        * { box-sizing: border-box; transition: all 0.3s ease; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Адаптивный контейнер */
+        .app-container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 30px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.05);
+            margin: 20px;
+        }
+
+        @media (max-width: 480px) {
+            .app-container {
+                margin: 0;
+                height: 100vh;
+                border-radius: 0;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+            }
+        }
+
+        h1 { text-align: center; color: var(--accent-blue); font-size: 28px; margin-bottom: 30px; }
+
+        /* Поля ввода */
+        input[type="text"], input[type="email"], input[type="password"] {
+            width: 100%;
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid var(--bg-color);
+            border-radius: 15px;
+            background: #f9fbfd;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--pastel-blue); }
+
+        /* Кнопки */
+        .btn {
+            width: 100%;
+            padding: 15px;
+            border: none;
+            border-radius: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 16px;
+        }
+
+        .btn-primary { background: var(--accent-blue); color: white; }
+        .btn-primary:hover { background: var(--dark-blue); transform: translateY(-2px); }
+
+        .btn-outline { background: transparent; border: 2px solid var(--pastel-blue); color: var(--dark-blue); }
+
+        /* Профиль */
+        .profile-card { text-align: center; }
+        .avatar-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        #user-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--pastel-blue);
+        }
+
+        .balance-badge {
+            background: var(--bg-color);
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 15px 0;
+            font-weight: bold;
+            color: var(--dark-blue);
+        }
+
+        .hidden { display: none; }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin: 10px 0;
+        }
+        .remember-me input { width: auto; margin-right: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div id="auth-screen">
+        <h1>LIFE IS GAME</h1>
+        <p id="auth-title" style="text-align: center; color: var(--text-secondary);">Вход в систему</p>
+        
+        <input type="email" id="email" placeholder="Ваш Email">
+        <input type="password" id="password" placeholder="Пароль">
+        
+        <div class="remember-me">
+            <input type="checkbox" id="remember">
+            <label for="remember">Запомнить меня</label>
+        </div>
+
+        <button class="btn btn-primary" onclick="handleAuth()">Войти</button>
+        <button class="btn btn-outline" id="toggle-auth" onclick="toggleAuthMode()">Нет аккаунта? Регистрация</button>
+    </div>
+
+    <div id="main-screen" class="hidden">
+        <div class="profile-card">
+            <div class="avatar-container">
+                <img id="user-avatar" src="https://via.placeholder.com/150" alt="Avatar">
+            </div>
+            <h2 id="display-name">Загрузка...</h2>
+            <div class="balance-badge">Баланс: <span id="balance">0</span> 🪙</div>
+            
+            <hr style="border: 1px solid var(--bg-color); margin: 20px 0;">
+            
+            <input type="text" id="new-name" placeholder="Сменить ник">
+            <label style="font-size: 12px; color: var(--text-secondary); cursor: pointer;">
+                Сменить фото (ссылка):
+                <input type="text" id="new-avatar-url" placeholder="URL картинки">
+            </label>
+            
+            <button class="btn btn-primary" onclick="updateProfile()">Обновить данные</button>
+            <button class="btn btn-outline" onclick="logout()" style="margin-top: 30px; border-color: #ffcdd2; color: #e53935;">Выйти</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- КОНФИГУРАЦИЯ FIREBASE ---
+    // ЗАМЕНИ ДАННЫЕ НИЖЕ НА СВОИ ИЗ КОНСОЛИ FIREBASE!
+    const firebaseConfig = {
+      apiKey: "AIzaSyApdR6xbfV3J2UMWubicsAuwRb3biH9Wnw",
+      authDomain: "life-is-game-8f170.firebaseapp.com",
+      projectId: "life-is-game-8f170",
+      storageBucket: "life-is-game-8f170.firebasestorage.app",
+      messagingSenderId: "861554529321",
+      appId: "1:861554529321:web:dda30b5d6c879433de7838",
+      measurementId: "G-ELFHWJMHBP"
+    };
+
+    // Инициализация
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    let isLoginMode = true;
+
+    // Переключение между Входом и Регистрацией
+    function toggleAuthMode() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('auth-title').innerText = isLoginMode ? "Вход в систему" : "Регистрация нового игрока";
+        document.getElementById('toggle-auth').innerText = isLoginMode ? "Нет аккаунта? Регистрация" : "Уже есть аккаунт? Войти";
+        document.querySelector('#auth-screen .btn-primary').innerText = isLoginMode ? "Войти" : "Создать персонажа";
+    }
+
+    // Обработка входа и регистрации
+    function handleAuth() {
+        const email = document.getElementById('email').value;
+        const pass = document.getElementById('password').value;
+        const remember = document.getElementById('remember').checked;
+
+        if (!email || !pass) return alert("Заполните поля!");
+
+        // Настройка "Запомнить меня"
+        const persistence = remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
+
+        auth.setPersistence(persistence).then(() => {
+            if (isLoginMode) {
+                return auth.signInWithEmailAndPassword(email, pass);
+            } else {
+                return auth.createUserWithEmailAndPassword(email, pass).then((userCredential) => {
+                    // Создаем начальные данные в базе для нового игрока
+                    return db.ref('users/' + userCredential.user.uid).set({
+                        username: "Игрок_" + Math.floor(Math.random() * 1000),
+                        balance: 500, // Стартовый капитал
+                        avatar: "https://cdn-icons-png.flaticon.com/512/149/149071.png"
+                    });
+                });
+            }
+        }).catch(error => alert(error.message));
+    }
+
+    // Слушатель состояния авторизации
+    auth.onAuthStateChanged((user) => {
+        const authScreen = document.getElementById('auth-screen');
+        const mainScreen = document.getElementById('main-screen');
+
+        if (user) {
+            authScreen.classList.add('hidden');
+            mainScreen.classList.remove('hidden');
+            loadUserData(user.uid);
+        } else {
+            authScreen.classList.remove('hidden');
+            mainScreen.classList.add('hidden');
+        }
+    });
+
+    // Загрузка данных профиля в реальном времени
+    function loadUserData(uid) {
+        db.ref('users/' + uid).on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                document.getElementById('display-name').innerText = data.username;
+                document.getElementById('balance').innerText = data.balance;
+                document.getElementById('user-avatar').src = data.avatar;
+            }
+        });
+    }
+
+    // Обновление ника и аватарки
+    function updateProfile() {
+        const user = auth.currentUser;
+        const newName = document.getElementById('new-name').value;
+        const newAvatar = document.getElementById('new-avatar-url').value;
+
+        let updates = {};
+        if (newName) updates.username = newName;
+        if (newAvatar) updates.avatar = newAvatar;
+
+        if (Object.keys(updates).length > 0) {
+            db.ref('users/' + user.uid).update(updates)
+                .then(() => alert("Данные обновлены!"))
+                .catch(err => alert(err.message));
+        }
+    }
+
+    // Выход
+    function logout() {
+        auth.signOut();
+    }
+</script>
+
+</body>
+</html>
